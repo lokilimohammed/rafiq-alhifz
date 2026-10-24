@@ -1,0 +1,49 @@
+name: Build Rafiq AlHifz APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Generate Android Folder & Preserve App Code
+        run: |
+          cp pubspec.yaml /tmp/pubspec.yaml.bak
+          cp lib/main.dart /tmp/main.dart.bak
+          flutter create --platforms=android --org com.rafiq.alhifz --project-name rafiq_alhifz .
+          cp /tmp/pubspec.yaml.bak pubspec.yaml
+          cp /tmp/main.dart.bak lib/main.dart
+          sed -i 's/Icons.Autorenew_rounded/Icons.autorenew_rounded/g' lib/main.dart
+
+      - name: Inject Microphone & Internet Permissions
+        run: |
+          sed -i 's/<application/<uses-permission android:name="android.permission.RECORD_AUDIO"\/><uses-permission android:name="android.permission.INTERNET"\/><application android:usesCleartextTraffic="true"/g' android/app/src/main/AndroidManifest.xml
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Release APK
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Upload Ready APK for Phone Download
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rafiq-AlHifz-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
